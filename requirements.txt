@@ -1,0 +1,16 @@
+# ComfyUI-FasterWhisper 依赖
+
+# 核心依赖
+faster-whisper>=1.0.0
+
+# 音频/视频处理
+av>=10.0.0
+
+# HTTP 请求 (用于 Ollama API)
+requests>=2.28.0
+
+# PyTorch (用于检测 CUDA)
+torch>=2.0.0
+
+# 可选: moviepy (备选音频提取方案)
+# moviepy>=1.0.3
