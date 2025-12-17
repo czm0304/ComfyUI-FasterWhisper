@@ -6,8 +6,10 @@
 import os
 import re
 import tempfile
+import sys
 import folder_paths
 from pathlib import Path
+from functools import lru_cache
 
 # 颜色名称到十六进制的映射
 COLOR_MAP = {
@@ -28,6 +30,127 @@ COLOR_MAP = {
 }
 
 COLOR_CHOICES = list(COLOR_MAP.keys())
+
+
+def _get_font_dirs():
+    dirs = []
+
+    local_dir = Path(__file__).resolve().parent.parent / "fonts"
+    if local_dir.exists() and local_dir.is_dir():
+        dirs.append(local_dir)
+
+    if sys.platform.startswith("win"):
+        windir = os.environ.get("WINDIR") or "C:\\Windows"
+        win_fonts = Path(windir) / "Fonts"
+        if win_fonts.exists() and win_fonts.is_dir():
+            dirs.append(win_fonts)
+
+        localappdata = os.environ.get("LOCALAPPDATA")
+        if localappdata:
+            user_fonts = Path(localappdata) / "Microsoft" / "Windows" / "Fonts"
+            if user_fonts.exists() and user_fonts.is_dir():
+                dirs.append(user_fonts)
+    elif sys.platform == "darwin":
+        for p in (
+            Path("/System/Library/Fonts"),
+            Path("/Library/Fonts"),
+            Path.home() / "Library" / "Fonts",
+        ):
+            if p.exists() and p.is_dir():
+                dirs.append(p)
+    else:
+        for p in (
+            Path("/usr/share/fonts"),
+            Path("/usr/local/share/fonts"),
+            Path.home() / ".fonts",
+        ):
+            if p.exists() and p.is_dir():
+                dirs.append(p)
+
+    return dirs
+
+
+@lru_cache(maxsize=1)
+def get_available_font_names():
+    names = {
+        "Arial",
+        "Helvetica",
+        "Times New Roman",
+        "Courier New",
+        "黑体 (SimHei)",
+        "SimHei - 黑体",
+        "SimHei",
+        "宋体 (SimSun)",
+        "SimSun - 宋体",
+        "SimSun",
+        "仿宋 (FangSong)",
+        "FangSong - 仿宋",
+        "FangSong",
+        "楷体 (KaiTi)",
+        "KaiTi - 楷体",
+        "KaiTi",
+        "NSimSun",
+        "SimSun-ExtB",
+        "微软雅黑 (Microsoft YaHei)",
+        "Microsoft YaHei - 微软雅黑",
+        "Microsoft YaHei",
+        "Noto Sans CJK SC",
+    }
+
+    for d in _get_font_dirs():
+        for ext in ("*.ttf", "*.otf", "*.ttc"):
+            try:
+                for fp in d.rglob(ext):
+                    if fp.is_file():
+                        names.add(fp.stem)
+
+                        stem_lower = fp.stem.lower()
+                        if stem_lower == "simsun":
+                            names.add("SimSun")
+                            names.add("宋体 (SimSun)")
+                        elif stem_lower == "simfang":
+                            names.add("FangSong")
+                            names.add("仿宋 (FangSong)")
+                        elif stem_lower in {"simkai", "kaiti"}:
+                            names.add("KaiTi")
+                            names.add("楷体 (KaiTi)")
+                        elif stem_lower in {"simhei", "heiti"}:
+                            names.add("SimHei")
+                            names.add("黑体 (SimHei)")
+                        elif stem_lower in {"msyh", "microsoftyahei", "microsoft yahei"}:
+                            names.add("Microsoft YaHei")
+                            names.add("微软雅黑 (Microsoft YaHei)")
+            except Exception:
+                continue
+
+    return sorted(names, key=lambda s: s.lower())
+
+
+def _escape_ffmpeg_filter_path(path_str: str) -> str:
+    return path_str.replace('\\', '/').replace(':', '\\:')
+
+
+def normalize_font_name(font_name: str) -> str:
+    if not font_name:
+        return "Arial"
+
+    m = re.search(r"\(([^()]+)\)\s*$", str(font_name))
+    if m:
+        return m.group(1).strip()
+
+    if " - " in str(font_name):
+        left = str(font_name).split(" - ", 1)[0].strip()
+        if left:
+            return left
+
+    return str(font_name).strip()
+
+
+def get_default_fontsdir():
+    for d in _get_font_dirs():
+        if d.exists() and d.is_dir():
+            return str(d)
+    return ""
 
 
 class VideoBurnNode:
@@ -131,7 +254,7 @@ class VideoBurnNode:
                     "tooltip": "翻译字幕描边宽度"
                 }),
                 # 字体设置
-                "font_name": ("STRING", {
+                "font_name": (get_available_font_names(), {
                     "default": "Arial",
                     "tooltip": "字体名称 (需要系统已安装)"
                 }),
@@ -156,6 +279,12 @@ class VideoBurnNode:
             lines = block.strip().split("\n")
             if len(lines) >= 3:
                 try:
+                    sub_index = None
+                    try:
+                        sub_index = int(lines[0].strip())
+                    except Exception:
+                        sub_index = None
+
                     # 解析时间戳
                     timestamp_line = lines[1]
                     match = re.match(
@@ -172,6 +301,7 @@ class VideoBurnNode:
                         text = "\n".join(lines[2:])
                         
                         subtitles.append({
+                            'index': sub_index,
                             'start': start_time,
                             'end': end_time,
                             'text': text
@@ -255,18 +385,77 @@ Style: Translated,{font_name},{trans_size},{self._hex_to_ass_color(trans_color)}
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
         
-        # 添加原文字幕
-        for sub in subtitles:
-            start_str = self._seconds_to_ass_time(sub['start'])
-            end_str = self._seconds_to_ass_time(sub['end'])
-            text = sub['text'].replace('\n', '\\N')
-            ass_content += f"Dialogue: 0,{start_str},{end_str},Original,,0,0,0,,{text}\n"
-        
-        # 添加翻译字幕
+        translated_by_index = {}
+        translated_by_time = {}
         for sub in translated_subtitles:
+            if not isinstance(sub, dict):
+                continue
+            idx = sub.get('index', None)
+            if isinstance(idx, int):
+                translated_by_index[idx] = sub
+            else:
+                key = (round(sub.get('start', 0.0), 3), round(sub.get('end', 0.0), 3))
+                translated_by_time[key] = sub
+
+        orig_tags = (
+            "{"
+            f"\\fs{text_size}"
+            f"\\c{self._hex_to_ass_color(text_color)}"
+            f"\\3c{self._hex_to_ass_color(text_outline_color)}"
+            f"\\bord{text_outline_width}"
+            "}"
+        )
+        trans_tags = (
+            "{"
+            f"\\fs{trans_size}"
+            f"\\c{self._hex_to_ass_color(trans_color)}"
+            f"\\3c{self._hex_to_ass_color(trans_outline_color)}"
+            f"\\bord{trans_outline_width}"
+            "}"
+        )
+
+        # 添加原文字幕（若有对应翻译，则合并为同一个 Dialogue，避免多行翻译与原文重叠）
+        for sub in subtitles:
+            trans_text_raw = None
+            idx = sub.get('index', None)
+            trans_sub = translated_by_index.pop(idx, None) if isinstance(idx, int) else None
+            if trans_sub is None:
+                start_key = (round(sub.get('start', 0.0), 3), round(sub.get('end', 0.0), 3))
+                trans_sub = translated_by_time.pop(start_key, None)
+            if trans_sub is not None:
+                trans_text_raw = trans_sub.get('text', '')
+
             start_str = self._seconds_to_ass_time(sub['start'])
             end_str = self._seconds_to_ass_time(sub['end'])
-            text = sub['text'].replace('\n', '\\N')
+            orig_text = sub['text'].replace('\n', '\\N')
+
+            if trans_text_raw:
+                trans_text = str(trans_text_raw).replace('\n', '\\N')
+
+                # 底部是哪一行由两者的 MarginV 决定（MarginV 更小更靠近底部）
+                if trans_margin_v < text_margin_v:
+                    style = "Translated"
+                    combined = f"{orig_tags}{orig_text}\\N{trans_tags}{trans_text}"
+                else:
+                    style = "Original"
+                    combined = f"{trans_tags}{trans_text}\\N{orig_tags}{orig_text}"
+
+                ass_content += f"Dialogue: 0,{start_str},{end_str},{style},,0,0,0,,{combined}\n"
+            else:
+                text = orig_text
+                ass_content += f"Dialogue: 0,{start_str},{end_str},Original,,0,0,0,,{text}\n"
+
+        # 添加未匹配到原文的翻译字幕
+        for sub in translated_by_index.values():
+            start_str = self._seconds_to_ass_time(sub.get('start', 0.0))
+            end_str = self._seconds_to_ass_time(sub.get('end', 0.0))
+            text = str(sub.get('text', '')).replace('\n', '\\N')
+            ass_content += f"Dialogue: 1,{start_str},{end_str},Translated,,0,0,0,,{text}\n"
+
+        for sub in translated_by_time.values():
+            start_str = self._seconds_to_ass_time(sub.get('start', 0.0))
+            end_str = self._seconds_to_ass_time(sub.get('end', 0.0))
+            text = str(sub.get('text', '')).replace('\n', '\\N')
             ass_content += f"Dialogue: 1,{start_str},{end_str},Translated,,0,0,0,,{text}\n"
         
         # 保存 ASS 文件
@@ -321,6 +510,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         text_outline_color = COLOR_MAP.get(text_outline_color, "#000000")
         trans_text_color = COLOR_MAP.get(trans_text_color, "#FFFF00")
         trans_outline_color = COLOR_MAP.get(trans_outline_color, "#000000")
+
+        font_name = normalize_font_name(font_name)
         
         # 解析字幕
         subtitles = self._parse_srt(srt_text) if srt_text else []
@@ -358,12 +549,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             
             # 构建 FFmpeg 命令
             # Windows 路径需要转义
-            ass_path_escaped = ass_path.replace('\\', '/').replace(':', '\\:')
+            ass_path_escaped = _escape_ffmpeg_filter_path(ass_path)
+            fontsdir = get_default_fontsdir()
+            fontsdir_escaped = _escape_ffmpeg_filter_path(fontsdir) if fontsdir else ""
             
             cmd = [
                 'ffmpeg', '-y',
                 '-i', video_path,
-                '-vf', f"ass='{ass_path_escaped}'",
+                '-vf', f"ass='{ass_path_escaped}'" + (f":fontsdir='{fontsdir_escaped}'" if fontsdir_escaped else ""),
                 '-c:a', 'copy',
                 '-c:v', 'libx264',
                 '-preset', 'medium',
@@ -384,7 +577,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 print(f"[FasterWhisper] FFmpeg 错误: {result.stderr}")
                 # 尝试使用 srt 滤镜
                 return self._burn_with_srt_filter(video_path, srt_text, translated_srt, output_path,
-                                                   text_size, text_color, trans_text_size, trans_text_color)
+                                                  text_size, text_color, trans_text_size, trans_text_color, font_name)
             
             print(f"[FasterWhisper] 字幕烧录完成: {output_path}")
             return (output_path,)
@@ -397,7 +590,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             raise RuntimeError(f"字幕烧录失败: {str(e)}")
     
     def _burn_with_srt_filter(self, video_path, srt_text, translated_srt, output_path,
-                               text_size, text_color, trans_size, trans_color):
+                               text_size, text_color, trans_size, trans_color, font_name="Arial"):
         """使用 SRT 滤镜作为备选方案"""
         import subprocess
         
@@ -412,14 +605,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             with open(srt_path, 'w', encoding='utf-8') as f:
                 f.write(srt_text)
             srt_path_escaped = srt_path.replace('\\', '/').replace(':', '\\:')
-            filters.append(f"subtitles='{srt_path_escaped}':force_style='FontSize={text_size},PrimaryColour={self._hex_to_ffmpeg_color(text_color)}'")
+            filters.append(f"subtitles='{srt_path_escaped}':force_style='FontName={font_name},FontSize={text_size},PrimaryColour={self._hex_to_ffmpeg_color(text_color)}'")
         
         if translated_srt:
             trans_srt_path = os.path.join(srt_dir, "translated.srt")
             with open(trans_srt_path, 'w', encoding='utf-8') as f:
                 f.write(translated_srt)
             trans_path_escaped = trans_srt_path.replace('\\', '/').replace(':', '\\:')
-            filters.append(f"subtitles='{trans_path_escaped}':force_style='FontSize={trans_size},PrimaryColour={self._hex_to_ffmpeg_color(trans_color)},MarginV=80'")
+            filters.append(f"subtitles='{trans_path_escaped}':force_style='FontName={font_name},FontSize={trans_size},PrimaryColour={self._hex_to_ffmpeg_color(trans_color)},MarginV=80'")
         
         if not filters:
             return (video_path,)

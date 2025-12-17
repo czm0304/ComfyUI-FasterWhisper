@@ -531,7 +531,7 @@ app.registerExtension({
     name: "FasterWhisper.SpeechRecognition",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "SpeechRecognition") return;
+        if (nodeData.name !== "LocalOllamaModelLoader") return;
         
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {

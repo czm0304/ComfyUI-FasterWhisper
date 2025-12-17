@@ -4,10 +4,10 @@
 """
 
 import os
-import json
 import requests
 import folder_paths
 from pathlib import Path
+import inspect
 from .llm_api import call_llm_api
 
 # 模型存储路径
@@ -102,9 +102,6 @@ class SpeechRecognitionNode:
     
     @classmethod
     def INPUT_TYPES(cls):
-        # 获取可用的 Ollama 模型
-        ollama_models = cls._get_ollama_models()
-        
         return {
             "required": {
                 "audio_path": ("AUDIO_PATH", {
@@ -128,17 +125,8 @@ class SpeechRecognitionNode:
                 }),
             },
             "optional": {
-                "llm_api": ("LLM_API", {
-                    "tooltip": "外部 LLM API 配置（优先使用，如连接则忽略下方 Ollama 设置）"
-                }),
-                "ollama_model": (ollama_models, {
-                    "default": ollama_models[0] if ollama_models else "无可用模型",
-                    "tooltip": "本地 Ollama 翻译模型（当未连接外部 LLM API 时使用）"
-                }),
-                "ollama_url": ("STRING", {
-                    "default": "http://localhost:11434",
-                    "multiline": False,
-                    "tooltip": "Ollama API 地址（当未连接外部 LLM API 时使用）"
+                "llm_model": ("LLM_API", {
+                    "tooltip": "大模型配置（连接本地大模型设置或云端大模型设置）"
                 }),
                 "beam_size": ("INT", {
                     "default": 5,
@@ -146,6 +134,13 @@ class SpeechRecognitionNode:
                     "max": 10,
                     "step": 1,
                     "tooltip": "Beam size 参数，越大越准确但越慢"
+                }),
+                "batch_size": ("INT", {
+                    "default": 8,
+                    "min": 1,
+                    "max": 64,
+                    "step": 1,
+                    "tooltip": "批处理大小（batch_size），增大可显著加速但会增加显存占用"
                 }),
                 "vad_filter": ("BOOLEAN", {
                     "default": True,
@@ -159,20 +154,6 @@ class SpeechRecognitionNode:
     FUNCTION = "transcribe"
     CATEGORY = "FasterWhisper/识别"
     OUTPUT_NODE = False
-    
-    @classmethod
-    def _get_ollama_models(cls):
-        """获取本地 Ollama 可用模型列表"""
-        try:
-            response = requests.get("http://localhost:11434/api/tags", timeout=2)
-            if response.status_code == 200:
-                models_data = response.json()
-                models = [m['name'] for m in models_data.get('models', [])]
-                if models:
-                    return models
-        except:
-            pass
-        return ["qwen2.5:7b", "llama3.1:8b", "gemma2:9b", "无可用模型"]
     
     def _load_model(self, model_name, compute_type):
         """加载 Whisper 模型"""
@@ -228,7 +209,7 @@ class SpeechRecognitionNode:
             text = segment.text.strip()
             srt_content.append(f"{i}\n{start_time} --> {end_time}\n{text}\n")
         return "\n".join(srt_content)
-    
+
     def _format_timestamp(self, seconds):
         """格式化时间戳为 SRT 格式"""
         hours = int(seconds // 3600)
@@ -236,79 +217,6 @@ class SpeechRecognitionNode:
         secs = int(seconds % 60)
         millis = int((seconds % 1) * 1000)
         return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
-    
-    def _translate_with_ollama(self, srt_content, target_language, ollama_model, ollama_url):
-        """使用 Ollama 翻译 SRT 内容"""
-        if target_language == "无翻译" or not srt_content:
-            return ""
-        
-        target_lang = target_language.split(" ")[0]
-        lang_names = {
-            "zh-CN": "简体中文",
-            "zh-TW": "繁体中文",
-            "en": "英语",
-            "ja": "日语",
-            "ko": "韩语",
-            "fr": "法语",
-            "de": "德语",
-            "es": "西班牙语",
-            "ru": "俄语",
-            "it": "意大利语",
-            "pt": "葡萄牙语",
-            "ar": "阿拉伯语",
-            "th": "泰语",
-            "vi": "越南语",
-        }
-        target_lang_name = lang_names.get(target_lang, target_lang)
-        
-        # 解析 SRT 并逐条翻译
-        lines = srt_content.strip().split("\n\n")
-        translated_lines = []
-        
-        for block in lines:
-            parts = block.strip().split("\n")
-            if len(parts) >= 3:
-                index = parts[0]
-                timestamp = parts[1]
-                text = "\n".join(parts[2:])
-                
-                # 翻译文本
-                translated_text = self._call_ollama(
-                    text, target_lang_name, ollama_model, ollama_url
-                )
-                
-                translated_lines.append(f"{index}\n{timestamp}\n{translated_text}")
-        
-        return "\n\n".join(translated_lines)
-    
-    def _call_ollama(self, text, target_language, model, url):
-        """调用 Ollama API 进行翻译"""
-        try:
-            prompt = f"请将以下文本翻译成{target_language}，只输出翻译结果，不要任何解释或额外内容：\n{text}"
-            
-            response = requests.post(
-                f"{url}/api/generate",
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.3,
-                    }
-                },
-                timeout=60
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                return result.get('response', text).strip()
-            else:
-                print(f"[FasterWhisper] Ollama 翻译失败: {response.status_code}")
-                return text
-                
-        except Exception as e:
-            print(f"[FasterWhisper] Ollama 翻译错误: {str(e)}")
-            return text
     
     def _translate_with_llm_api(self, srt_content, target_language, llm_api_config):
         """使用外部 LLM API 翻译 SRT 内容"""
@@ -353,7 +261,7 @@ class SpeechRecognitionNode:
         return "\n\n".join(translated_lines)
     
     def transcribe(self, audio_path, model, compute_type, language, translation_language,
-                   llm_api=None, ollama_model="", ollama_url="http://localhost:11434", beam_size=5, vad_filter=True):
+                   llm_model=None, beam_size=5, batch_size=8, vad_filter=True):
         """
         执行语音识别
         """
@@ -369,14 +277,39 @@ class SpeechRecognitionNode:
         print(f"[FasterWhisper] 开始识别: {audio_path}")
         print(f"[FasterWhisper] 语言: {lang if lang else '自动检测'}, Beam Size: {beam_size}")
         
+        transcribe_kwargs = {
+            "language": lang,
+            "beam_size": beam_size,
+            "vad_filter": vad_filter,
+            "vad_parameters": dict(min_silence_duration_ms=500),
+        }
+
+        try:
+            sig = inspect.signature(whisper_model.transcribe)
+            if "batch_size" in sig.parameters:
+                transcribe_kwargs["batch_size"] = batch_size
+            else:
+                if batch_size != 8:
+                    print("[FasterWhisper] 警告: 当前 faster-whisper 版本不支持 batch_size 参数，将忽略该设置")
+        except Exception:
+            pass
+
         # 执行识别
-        segments, info = whisper_model.transcribe(
-            audio_path,
-            language=lang,
-            beam_size=beam_size,
-            vad_filter=vad_filter,
-            vad_parameters=dict(min_silence_duration_ms=500),
-        )
+        try:
+            segments, info = whisper_model.transcribe(
+                audio_path,
+                **transcribe_kwargs,
+            )
+        except TypeError as e:
+            if "batch_size" in transcribe_kwargs and "batch_size" in str(e):
+                transcribe_kwargs.pop("batch_size", None)
+                print("[FasterWhisper] 警告: WhisperModel.transcribe 不支持 batch_size，已自动忽略并重试")
+                segments, info = whisper_model.transcribe(
+                    audio_path,
+                    **transcribe_kwargs,
+                )
+            else:
+                raise
         
         # 转换为列表（触发实际识别）
         segments_list = list(segments)
@@ -391,20 +324,12 @@ class SpeechRecognitionNode:
         translated_srt = ""
         if translation_language != "无翻译":
             print(f"[FasterWhisper] 开始翻译到: {translation_language}")
-            
-            # 优先使用外部 LLM API
-            if llm_api is not None:
-                print(f"[FasterWhisper] 使用外部 LLM API: {llm_api.get('api_type', '')} - {llm_api.get('model_name', '')}")
-                translated_srt = self._translate_with_llm_api(
-                    srt_content, translation_language, llm_api
-                )
-            elif ollama_model and ollama_model != "无可用模型":
-                print(f"[FasterWhisper] 使用内置 Ollama: {ollama_model}")
-                translated_srt = self._translate_with_ollama(
-                    srt_content, translation_language, ollama_model, ollama_url
-                )
+
+            if llm_model is not None:
+                print(f"[FasterWhisper] 使用大模型: {llm_model.get('api_type', '')} - {llm_model.get('model_name', '')}")
+                translated_srt = self._translate_with_llm_api(srt_content, translation_language, llm_model)
             else:
-                print(f"[FasterWhisper] 警告: 未配置翻译模型，跳过翻译")
+                print(f"[FasterWhisper] 警告: 未连接大模型配置节点，跳过翻译")
             
             if translated_srt:
                 print(f"[FasterWhisper] 翻译完成")

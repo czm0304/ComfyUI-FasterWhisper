@@ -27,7 +27,8 @@ from .nodes.speech_recognition import SpeechRecognitionNode
 from .nodes.video_burn import VideoBurnNode
 from .nodes.save_video import SaveVideoNode
 from .nodes.text_display import TextDisplayNode
-from .nodes.llm_api import LLMApiNode
+from .nodes.cloud_api_model_loader import CloudApiModelLoaderNode
+from .nodes.local_ollama_model_loader import LocalOllamaModelLoaderNode
 
 # 节点类映射
 NODE_CLASS_MAPPINGS = {
@@ -36,7 +37,8 @@ NODE_CLASS_MAPPINGS = {
     "VideoBurn": VideoBurnNode,
     "SaveVideo": SaveVideoNode,
     "TextDisplay": TextDisplayNode,
-    "LLMApi": LLMApiNode,
+    "CloudApiModelLoader": CloudApiModelLoaderNode,
+    "LocalOllamaModelLoader": LocalOllamaModelLoaderNode,
 }
 
 # 节点显示名称映射
@@ -46,7 +48,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VideoBurn": "📝 文本与视频烧录",
     "SaveVideo": "💾 保存视频",
     "TextDisplay": "📄 文本展示框",
-    "LLMApi": "🤖 LLM API 配置",
+    "CloudApiModelLoader": "☁️ 云端大模型设置",
+    "LocalOllamaModelLoader": "🧠 本地大模型设置 (Ollama)",
 }
 
 # Web 目录
