@@ -253,10 +253,15 @@ class VideoBurnNode:
                     "step": 1,
                     "tooltip": "翻译字幕描边宽度"
                 }),
-                # 字体设置
-                "font_name": (get_available_font_names(), {
+                # 原文字体设置
+                "text_font_name": (get_available_font_names(), {
                     "default": "Arial",
-                    "tooltip": "字体名称 (需要系统已安装)"
+                    "tooltip": "原文字幕字体名称 (需要系统已安装)"
+                }),
+                # 翻译字体设置
+                "trans_font_name": (get_available_font_names(), {
+                    "default": "Arial",
+                    "tooltip": "翻译字幕字体名称 (需要系统已安装)"
                 }),
             },
         }
@@ -324,7 +329,7 @@ class VideoBurnNode:
     def _create_ass_file(self, subtitles, translated_subtitles, video_width, video_height,
                          text_size, text_color, text_pos_x, text_pos_y, text_outline_color, text_outline_width,
                          trans_size, trans_color, trans_pos_x, trans_pos_y, trans_outline_color, trans_outline_width,
-                         font_name):
+                         text_font_name, trans_font_name):
         """创建 ASS 字幕文件"""
         
         # 计算Y位置 - Y值直接表示从视频底部算起的边距
@@ -378,8 +383,8 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Original,{font_name},{text_size},{self._hex_to_ass_color(text_color)},&H000000FF&,{self._hex_to_ass_color(text_outline_color)},&H80000000&,0,0,0,0,100,100,0,0,1,{text_outline_width},1,{text_alignment},{text_margin_l},{text_margin_r},{text_margin_v},1
-Style: Translated,{font_name},{trans_size},{self._hex_to_ass_color(trans_color)},&H000000FF&,{self._hex_to_ass_color(trans_outline_color)},&H80000000&,0,0,0,0,100,100,0,0,1,{trans_outline_width},1,{trans_alignment},{trans_margin_l},{trans_margin_r},{trans_margin_v},1
+Style: Original,{text_font_name},{text_size},{self._hex_to_ass_color(text_color)},&H000000FF&,{self._hex_to_ass_color(text_outline_color)},&H80000000&,0,0,0,0,100,100,0,0,1,{text_outline_width},1,{text_alignment},{text_margin_l},{text_margin_r},{text_margin_v},1
+Style: Translated,{trans_font_name},{trans_size},{self._hex_to_ass_color(trans_color)},&H000000FF&,{self._hex_to_ass_color(trans_outline_color)},&H80000000&,0,0,0,0,100,100,0,0,1,{trans_outline_width},1,{trans_alignment},{trans_margin_l},{trans_margin_r},{trans_margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -498,7 +503,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                        text_outline_color="black", text_outline_width=2,
                        trans_text_size=20, trans_text_color="yellow", trans_position_x=-1, trans_position_y=-2,
                        trans_outline_color="black", trans_outline_width=2,
-                       font_name="Arial"):
+                       text_font_name="Arial", trans_font_name="Arial"):
         """
         将字幕烧录到视频
         """
@@ -511,7 +516,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         trans_text_color = COLOR_MAP.get(trans_text_color, "#FFFF00")
         trans_outline_color = COLOR_MAP.get(trans_outline_color, "#000000")
 
-        font_name = normalize_font_name(font_name)
+        text_font_name = normalize_font_name(text_font_name)
+        trans_font_name = normalize_font_name(trans_font_name)
         
         # 解析字幕
         subtitles = self._parse_srt(srt_text) if srt_text else []
@@ -533,7 +539,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             subtitles, translated_subtitles, video_width, video_height,
             text_size, text_color, text_position_x, text_position_y, text_outline_color, text_outline_width,
             trans_text_size, trans_text_color, trans_position_x, trans_position_y, trans_outline_color, trans_outline_width,
-            font_name
+            text_font_name, trans_font_name
         )
         
         # 输出视频路径
@@ -577,7 +583,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 print(f"[FasterWhisper] FFmpeg 错误: {result.stderr}")
                 # 尝试使用 srt 滤镜
                 return self._burn_with_srt_filter(video_path, srt_text, translated_srt, output_path,
-                                                  text_size, text_color, trans_text_size, trans_text_color, font_name)
+                                                  text_size, text_color, trans_text_size, trans_text_color,
+                                                  text_font_name, trans_font_name)
             
             print(f"[FasterWhisper] 字幕烧录完成: {output_path}")
             return (output_path,)
@@ -590,7 +597,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             raise RuntimeError(f"字幕烧录失败: {str(e)}")
     
     def _burn_with_srt_filter(self, video_path, srt_text, translated_srt, output_path,
-                               text_size, text_color, trans_size, trans_color, font_name="Arial"):
+                               text_size, text_color, trans_size, trans_color,
+                               text_font_name="Arial", trans_font_name="Arial"):
         """使用 SRT 滤镜作为备选方案"""
         import subprocess
         
@@ -605,14 +613,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             with open(srt_path, 'w', encoding='utf-8') as f:
                 f.write(srt_text)
             srt_path_escaped = srt_path.replace('\\', '/').replace(':', '\\:')
-            filters.append(f"subtitles='{srt_path_escaped}':force_style='FontName={font_name},FontSize={text_size},PrimaryColour={self._hex_to_ffmpeg_color(text_color)}'")
+            filters.append(f"subtitles='{srt_path_escaped}':force_style='FontName={text_font_name},FontSize={text_size},PrimaryColour={self._hex_to_ffmpeg_color(text_color)}'")
         
         if translated_srt:
             trans_srt_path = os.path.join(srt_dir, "translated.srt")
             with open(trans_srt_path, 'w', encoding='utf-8') as f:
                 f.write(translated_srt)
             trans_path_escaped = trans_srt_path.replace('\\', '/').replace(':', '\\:')
-            filters.append(f"subtitles='{trans_path_escaped}':force_style='FontName={font_name},FontSize={trans_size},PrimaryColour={self._hex_to_ffmpeg_color(trans_color)},MarginV=80'")
+            filters.append(f"subtitles='{trans_path_escaped}':force_style='FontName={trans_font_name},FontSize={trans_size},PrimaryColour={self._hex_to_ffmpeg_color(trans_color)},MarginV=80'")
         
         if not filters:
             return (video_path,)
