@@ -1,0 +1,400 @@
+{
+  "id": "35c0a08d-71fc-48a0-a855-8caf3d8a62a3",
+  "revision": 0,
+  "last_node_id": 30,
+  "last_link_id": 23,
+  "nodes": [
+    {
+      "id": 21,
+      "type": "MediaLoader",
+      "pos": [
+        2166.55810546875,
+        -1375.0438232421875
+      ],
+      "size": [
+        461.8039855957031,
+        518.010986328125
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "音频输出",
+          "name": "音频输出",
+          "type": "AUDIO_PATH",
+          "links": [
+            15
+          ]
+        },
+        {
+          "label": "视频输出",
+          "name": "视频输出",
+          "type": "VIDEO_PATH",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "czm0304/ComfyUI-FasterWhisper",
+        "ver": "b30d2ece15ecc3566ace1bddacfa3e4fc3e8efd5",
+        "Node name for S&R": "MediaLoader"
+      },
+      "widgets_values": [
+        "a248bbff86cdd7962b5ad8f88a306ebc.mp4",
+        ""
+      ]
+    },
+    {
+      "id": 22,
+      "type": "SpeechRecognition",
+      "pos": [
+        2827.46875,
+        -1615.053955078125
+      ],
+      "size": [
+        367.79998779296875,
+        242
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio_path",
+          "shape": 7,
+          "type": "AUDIO_PATH",
+          "link": 15
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "llm_model",
+          "shape": 7,
+          "type": "LLM_API",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SRT文件输出",
+          "type": "SRT_TEXT",
+          "links": [
+            17,
+            20
+          ]
+        },
+        {
+          "name": "翻译后SRT输出",
+          "type": "SRT_TEXT",
+          "links": [
+            18,
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "czm0304/ComfyUI-FasterWhisper",
+        "ver": "b30d2ece15ecc3566ace1bddacfa3e4fc3e8efd5",
+        "Node name for S&R": "SpeechRecognition"
+      },
+      "widgets_values": [
+        "large-v3",
+        "float16",
+        "zh (中文)",
+        "en (英语)",
+        10,
+        10,
+        true
+      ]
+    },
+    {
+      "id": 23,
+      "type": "VideoBurn",
+      "pos": [
+        2833.823974609375,
+        -1332.3240966796875
+      ],
+      "size": [
+        380,
+        410
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "video_path",
+          "name": "video_path",
+          "type": "VIDEO_PATH",
+          "link": 16
+        },
+        {
+          "label": "srt_text",
+          "name": "srt_text",
+          "shape": 7,
+          "type": "SRT_TEXT",
+          "link": 17
+        },
+        {
+          "label": "translated_srt",
+          "name": "translated_srt",
+          "shape": 7,
+          "type": "SRT_TEXT",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "label": "烧录后视频",
+          "name": "烧录后视频",
+          "type": "BURNED_VIDEO_PATH",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "czm0304/ComfyUI-FasterWhisper",
+        "ver": "b30d2ece15ecc3566ace1bddacfa3e4fc3e8efd5",
+        "Node name for S&R": "VideoBurn"
+      },
+      "widgets_values": [
+        30,
+        "yellow",
+        -1,
+        60,
+        "black",
+        2,
+        28,
+        "white",
+        -1,
+        0,
+        "black",
+        2,
+        "仿宋 (FangSong)",
+        "仿宋 (FangSong)"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "SaveVideo",
+      "pos": [
+        3234.20751953125,
+        -1634.571044921875
+      ],
+      "size": [
+        591.7182006835938,
+        715.5090942382812
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "video_path",
+          "name": "video_path",
+          "type": "BURNED_VIDEO_PATH",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "label": "保存路径",
+          "name": "保存路径",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "czm0304/ComfyUI-FasterWhisper",
+        "ver": "b30d2ece15ecc3566ace1bddacfa3e4fc3e8efd5",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "output",
+        false
+      ]
+    },
+    {
+      "id": 25,
+      "type": "TextDisplay",
+      "pos": [
+        3845.3408203125,
+        -1635.6923828125
+      ],
+      "size": [
+        700,
+        714.0950317382812
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "srt_text",
+          "name": "srt_text",
+          "type": "SRT_TEXT",
+          "link": 20
+        },
+        {
+          "label": "translated_srt_text",
+          "name": "translated_srt_text",
+          "shape": 7,
+          "type": "SRT_TEXT",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "label": "原文内容",
+          "name": "原文内容",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "label": "翻译内容",
+          "name": "翻译内容",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "czm0304/ComfyUI-FasterWhisper",
+        "ver": "b30d2ece15ecc3566ace1bddacfa3e4fc3e8efd5",
+        "Node name for S&R": "TextDisplay"
+      },
+      "widgets_values": [
+        false,
+        "subtitles"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "LocalOllamaModelLoader",
+      "pos": [
+        2120.73583984375,
+        -1785.3297119140625
+      ],
+      "size": [
+        450.4132080078125,
+        288.1156921386719
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "LLM Model",
+          "name": "LLM Model",
+          "type": "LLM_API",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "czm0304/ComfyUI-FasterWhisper",
+        "ver": "68ed933380385b92e91f3f9725dc1e0ed140dbff",
+        "Node name for S&R": "LocalOllamaModelLoader"
+      },
+      "widgets_values": [
+        "deepseek-r1:1.5b",
+        "http://localhost:11434",
+        0.3,
+        1024,
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      15,
+      21,
+      0,
+      22,
+      0,
+      "AUDIO_PATH"
+    ],
+    [
+      16,
+      21,
+      1,
+      23,
+      0,
+      "VIDEO_PATH"
+    ],
+    [
+      17,
+      22,
+      0,
+      23,
+      1,
+      "SRT_TEXT"
+    ],
+    [
+      18,
+      22,
+      1,
+      23,
+      2,
+      "SRT_TEXT"
+    ],
+    [
+      19,
+      23,
+      0,
+      24,
+      0,
+      "BURNED_VIDEO_PATH"
+    ],
+    [
+      20,
+      22,
+      0,
+      25,
+      0,
+      "SRT_TEXT"
+    ],
+    [
+      21,
+      22,
+      1,
+      25,
+      1,
+      "SRT_TEXT"
+    ],
+    [
+      23,
+      30,
+      0,
+      22,
+      2,
+      "LLM_API"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.1000000000000005,
+      "offset": [
+        -1286.4948958610066,
+        1941.6892052753751
+      ]
+    },
+    "frontendVersion": "1.16.8",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
