@@ -16,7 +16,7 @@
         410
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [
         {
@@ -213,144 +213,6 @@
       ]
     },
     {
-      "id": 47,
-      "type": "FW_SpeechRecognition",
-      "pos": [
-        3324.8862444971865,
-        -2067.2423556365748
-      ],
-      "size": [
-        281.52734375,
-        242
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "label": "audio_path",
-          "name": "audio_path",
-          "shape": 7,
-          "type": "AUDIO_PATH",
-          "link": 40
-        },
-        {
-          "label": "audio",
-          "name": "audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": null
-        },
-        {
-          "label": "llm_model",
-          "name": "llm_model",
-          "shape": 7,
-          "type": "LLM_API",
-          "link": 43
-        },
-        {
-          "label": "model",
-          "name": "model",
-          "type": "COMBO",
-          "widget": {
-            "name": "model"
-          },
-          "link": null
-        },
-        {
-          "label": "compute_type",
-          "name": "compute_type",
-          "type": "COMBO",
-          "widget": {
-            "name": "compute_type"
-          },
-          "link": null
-        },
-        {
-          "label": "language",
-          "name": "language",
-          "type": "COMBO",
-          "widget": {
-            "name": "language"
-          },
-          "link": null
-        },
-        {
-          "label": "translation_language",
-          "name": "translation_language",
-          "type": "COMBO",
-          "widget": {
-            "name": "translation_language"
-          },
-          "link": null
-        },
-        {
-          "label": "beam_size",
-          "name": "beam_size",
-          "shape": 7,
-          "type": "INT",
-          "widget": {
-            "name": "beam_size"
-          },
-          "link": null
-        },
-        {
-          "label": "batch_size",
-          "name": "batch_size",
-          "shape": 7,
-          "type": "INT",
-          "widget": {
-            "name": "batch_size"
-          },
-          "link": null
-        },
-        {
-          "label": "vad_filter",
-          "name": "vad_filter",
-          "shape": 7,
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "vad_filter"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "label": "SRT文件输出",
-          "name": "SRT文件输出",
-          "type": "SRT_TEXT",
-          "links": [
-            38,
-            41
-          ]
-        },
-        {
-          "label": "翻译后SRT输出",
-          "name": "翻译后SRT输出",
-          "type": "SRT_TEXT",
-          "links": [
-            39,
-            42
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "czm0304/ComfyUI-FasterWhisper",
-        "ver": "68ed933380385b92e91f3f9725dc1e0ed140dbff",
-        "Node name for S&R": "FW_SpeechRecognition"
-      },
-      "widgets_values": [
-        "large-v3",
-        "float16",
-        "zh (中文)",
-        "en (英语)",
-        10,
-        10,
-        true
-      ]
-    },
-    {
       "id": 44,
       "type": "FW_SaveVideo",
       "pos": [
@@ -362,7 +224,7 @@
         591.4545454545455
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
@@ -422,7 +284,7 @@
         1038.5092548323198
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
@@ -547,90 +409,141 @@
       ]
     },
     {
-      "id": 49,
-      "type": "FW_LocalOllamaModelLoader",
+      "id": 47,
+      "type": "FW_SpeechRecognition",
       "pos": [
-        2639.072926059992,
-        -2184.8625196396106
+        3324.8862444971865,
+        -2067.2423556365748
       ],
       "size": [
-        466,
-        342
+        281.52734375,
+        242
       ],
       "flags": {},
       "order": 1,
       "mode": 0,
       "inputs": [
         {
-          "label": "ollama_model",
-          "name": "ollama_model",
+          "label": "audio_path",
+          "name": "audio_path",
+          "shape": 7,
+          "type": "AUDIO_PATH",
+          "link": 40
+        },
+        {
+          "label": "audio",
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "label": "llm_model",
+          "name": "llm_model",
+          "shape": 7,
+          "type": "LLM_API",
+          "link": null
+        },
+        {
+          "label": "model",
+          "name": "model",
           "type": "COMBO",
           "widget": {
-            "name": "ollama_model"
+            "name": "model"
           },
           "link": null
         },
         {
-          "label": "ollama_url",
-          "name": "ollama_url",
-          "type": "STRING",
+          "label": "compute_type",
+          "name": "compute_type",
+          "type": "COMBO",
           "widget": {
-            "name": "ollama_url"
+            "name": "compute_type"
           },
           "link": null
         },
         {
-          "label": "temperature",
-          "name": "temperature",
-          "shape": 7,
-          "type": "FLOAT",
+          "label": "language",
+          "name": "language",
+          "type": "COMBO",
           "widget": {
-            "name": "temperature"
+            "name": "language"
           },
           "link": null
         },
         {
-          "label": "max_tokens",
-          "name": "max_tokens",
+          "label": "translation_language",
+          "name": "translation_language",
+          "type": "COMBO",
+          "widget": {
+            "name": "translation_language"
+          },
+          "link": null
+        },
+        {
+          "label": "beam_size",
+          "name": "beam_size",
           "shape": 7,
           "type": "INT",
           "widget": {
-            "name": "max_tokens"
+            "name": "beam_size"
           },
           "link": null
         },
         {
-          "label": "system_prompt",
-          "name": "system_prompt",
+          "label": "batch_size",
+          "name": "batch_size",
           "shape": 7,
-          "type": "STRING",
+          "type": "INT",
           "widget": {
-            "name": "system_prompt"
+            "name": "batch_size"
+          },
+          "link": null
+        },
+        {
+          "label": "vad_filter",
+          "name": "vad_filter",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "vad_filter"
           },
           "link": null
         }
       ],
       "outputs": [
         {
-          "label": "LLM Model",
-          "name": "LLM Model",
-          "type": "LLM_API",
+          "label": "SRT文件输出",
+          "name": "SRT文件输出",
+          "type": "SRT_TEXT",
           "links": [
-            43
+            38,
+            41
+          ]
+        },
+        {
+          "label": "翻译后SRT输出",
+          "name": "翻译后SRT输出",
+          "type": "SRT_TEXT",
+          "links": [
+            39,
+            42
           ]
         }
       ],
       "properties": {
         "aux_id": "czm0304/ComfyUI-FasterWhisper",
         "ver": "68ed933380385b92e91f3f9725dc1e0ed140dbff",
-        "Node name for S&R": "FW_LocalOllamaModelLoader"
+        "Node name for S&R": "FW_SpeechRecognition"
       },
       "widgets_values": [
-        "deepseek-r1:1.5b",
-        "http://localhost:11434",
-        0.3,
-        1024,
-        ""
+        "large-v3",
+        "float16",
+        "zh (中文)",
+        "无翻译",
+        10,
+        10,
+        true
       ]
     }
   ],
@@ -690,24 +603,16 @@
       45,
       1,
       "SRT_TEXT"
-    ],
-    [
-      43,
-      49,
-      0,
-      47,
-      2,
-      "LLM_API"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.620921323059155,
+      "scale": 0.7513148009015777,
       "offset": [
-        -1666.6805726226003,
-        2961.7740673452954
+        -1520.1349799779723,
+        2541.020720733724
       ]
     },
     "frontendVersion": "1.35.9",
