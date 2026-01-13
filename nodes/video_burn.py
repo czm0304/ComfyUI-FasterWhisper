@@ -33,12 +33,10 @@ COLOR_CHOICES = list(COLOR_MAP.keys())
 
 
 def _get_font_dirs():
+    """获取字体目录列表，系统字体优先，本地字体作为后备"""
     dirs = []
 
-    local_dir = Path(__file__).resolve().parent.parent / "fonts"
-    if local_dir.exists() and local_dir.is_dir():
-        dirs.append(local_dir)
-
+    # 系统字体目录优先
     if sys.platform.startswith("win"):
         windir = os.environ.get("WINDIR") or "C:\\Windows"
         win_fonts = Path(windir) / "Fonts"
@@ -66,6 +64,11 @@ def _get_font_dirs():
         ):
             if p.exists() and p.is_dir():
                 dirs.append(p)
+
+    # 本地字体目录作为后备（可删除 fonts 文件夹减小项目体积）
+    local_dir = Path(__file__).resolve().parent.parent / "fonts"
+    if local_dir.exists() and local_dir.is_dir():
+        dirs.append(local_dir)
 
     return dirs
 
