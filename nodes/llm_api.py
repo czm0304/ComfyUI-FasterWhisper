@@ -162,6 +162,9 @@ def call_llm_api(config, prompt, target_language):
         # 替换目标语言占位符
         system_prompt = system_prompt.replace("{target_language}", target_language)
     
+    # 保存原始文本，用于异常时返回
+    original_text = prompt
+    
     # 在用户输入前添加翻译指令，强制模型直接输出译文
     prompt = f"翻译成{target_language}（只输出译文）：{prompt}"
     
@@ -183,7 +186,7 @@ def call_llm_api(config, prompt, target_language):
         return _clean_translation_output(result)
     except Exception as e:
         print(f"[FasterWhisper] LLM API 调用错误: {str(e)}")
-        return prompt  # 返回原文
+        return original_text  # 返回原文（不带翻译指令）
 
 
 def _call_ollama_api(api_url, model_name, prompt, system_prompt, temperature):
@@ -201,7 +204,7 @@ def _call_ollama_api(api_url, model_name, prompt, system_prompt, temperature):
                 "temperature": temperature,
             }
         },
-        timeout=60
+        timeout=300
     )
     
     if response.status_code == 200:
