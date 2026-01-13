@@ -215,7 +215,7 @@ app.registerExtension({
     name: "FasterWhisper.MediaLoader",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "MediaLoader") return;
+        if (nodeData.name !== "FW_MediaLoader") return;
         
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
@@ -378,7 +378,7 @@ app.registerExtension({
     name: "FasterWhisper.TextDisplay",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "TextDisplay") return;
+        if (nodeData.name !== "FW_TextDisplay") return;
         
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
@@ -477,7 +477,7 @@ app.registerExtension({
     name: "FasterWhisper.SaveVideo",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "SaveVideo") return;
+        if (nodeData.name !== "FW_SaveVideo") return;
         
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
@@ -531,7 +531,7 @@ app.registerExtension({
     name: "FasterWhisper.SpeechRecognition",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "LocalOllamaModelLoader") return;
+        if (nodeData.name !== "FW_LocalOllamaModelLoader") return;
         
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
@@ -600,7 +600,7 @@ app.registerExtension({
     name: "FasterWhisper.VideoBurn",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "VideoBurn") return;
+        if (nodeData.name !== "FW_VideoBurn") return;
         
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {

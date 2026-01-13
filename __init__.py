@@ -32,24 +32,24 @@ from .nodes.local_ollama_model_loader import LocalOllamaModelLoaderNode
 
 # 节点类映射
 NODE_CLASS_MAPPINGS = {
-    "MediaLoader": MediaLoaderNode,
-    "SpeechRecognition": SpeechRecognitionNode,
-    "VideoBurn": VideoBurnNode,
-    "SaveVideo": SaveVideoNode,
-    "TextDisplay": TextDisplayNode,
-    "CloudApiModelLoader": CloudApiModelLoaderNode,
-    "LocalOllamaModelLoader": LocalOllamaModelLoaderNode,
+    "FW_MediaLoader": MediaLoaderNode,
+    "FW_SpeechRecognition": SpeechRecognitionNode,
+    "FW_VideoBurn": VideoBurnNode,
+    "FW_SaveVideo": SaveVideoNode,
+    "FW_TextDisplay": TextDisplayNode,
+    "FW_CloudApiModelLoader": CloudApiModelLoaderNode,
+    "FW_LocalOllamaModelLoader": LocalOllamaModelLoaderNode,
 }
 
 # 节点显示名称映射
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "MediaLoader": "🎬 媒体加载器 (视频/音频)",
-    "SpeechRecognition": "🎤 语音识别文字",
-    "VideoBurn": "📝 文本与视频烧录",
-    "SaveVideo": "💾 保存视频",
-    "TextDisplay": "📄 文本展示框",
-    "CloudApiModelLoader": "☁️ 云端大模型设置",
-    "LocalOllamaModelLoader": "🧠 本地大模型设置 (Ollama)",
+    "FW_MediaLoader": "🎬 媒体加载器 (视频/音频)",
+    "FW_SpeechRecognition": "🎤 语音识别文字",
+    "FW_VideoBurn": "📝 文本与视频烧录",
+    "FW_SaveVideo": "💾 保存视频",
+    "FW_TextDisplay": "📄 文本展示框",
+    "FW_CloudApiModelLoader": "☁️ 云端大模型设置",
+    "FW_LocalOllamaModelLoader": "🧠 本地大模型设置 (Ollama)",
 }
 
 # Web 目录

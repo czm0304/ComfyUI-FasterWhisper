@@ -4,6 +4,13 @@ PROVIDERS = [
     "自定义",
 ]
 
+API_FORMATS = [
+    "自动检测",
+    "Chat Completions (messages)",
+    "Completions (prompt)",
+    "Responses (input)",
+]
+
 
 _DEFAULT_PROVIDER_URLS = {
     "OpenAI": "https://api.openai.com/v1/chat/completions",
@@ -57,6 +64,10 @@ class CloudApiModelLoaderNode:
                     "multiline": True,
                     "tooltip": "系统提示词（可选，留空使用默认翻译提示）",
                 }),
+                "api_format": (API_FORMATS, {
+                    "default": "自动检测",
+                    "tooltip": "API 格式：\n- 自动检测: 根据 URL 自动判断\n- Chat Completions: 使用 messages 数组\n- Completions: 使用 prompt 字符串（doubao-seed 等）",
+                }),
             },
         }
 
@@ -75,6 +86,7 @@ class CloudApiModelLoaderNode:
         temperature=0.3,
         max_tokens=1024,
         system_prompt="",
+        api_format="自动检测",
     ):
         resolved_api_url = (api_url or "").strip()
         if not resolved_api_url:
@@ -89,6 +101,7 @@ class CloudApiModelLoaderNode:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "system_prompt": system_prompt,
+            "api_format": api_format,
         }
 
         print(f"[FasterWhisper] Cloud API 模型配置: {provider} - {model_name}")

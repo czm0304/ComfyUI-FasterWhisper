@@ -1,0 +1,13 @@
+# Available Tools
+
+## vis_gbyw
+
+Parameters:
+- summary (required): Put your COMPLETE response here in Markdown format (supports tables, code blocks, lists)
+- reason (optional)
+
+ALWAYS call vis_gbyw at the end of EVERY response.
+
+## Format
+
+{"tool": "vis_gbyw", "arguments": {"summary": "Your full Markdown response here"}}

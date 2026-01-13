@@ -8,6 +8,8 @@ import requests
 import folder_paths
 from pathlib import Path
 import inspect
+import tempfile
+import numpy as np
 from .llm_api import call_llm_api
 
 # 模型存储路径
@@ -104,9 +106,6 @@ class SpeechRecognitionNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "audio_path": ("AUDIO_PATH", {
-                    "tooltip": "音频文件路径"
-                }),
                 "model": (WHISPER_MODELS, {
                     "default": "large-v3",
                     "tooltip": "选择 Whisper 模型"
@@ -125,6 +124,12 @@ class SpeechRecognitionNode:
                 }),
             },
             "optional": {
+                "audio_path": ("AUDIO_PATH", {
+                    "tooltip": "音频文件路径（来自媒体加载器）"
+                }),
+                "audio": ("AUDIO", {
+                    "tooltip": "音频输入（来自ComfyUI原生音频节点）"
+                }),
                 "llm_model": ("LLM_API", {
                     "tooltip": "大模型配置（连接本地大模型设置或云端大模型设置）"
                 }),
@@ -219,7 +224,7 @@ class SpeechRecognitionNode:
         return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
     
     def _translate_with_llm_api(self, srt_content, target_language, llm_api_config):
-        """使用外部 LLM API 翻译 SRT 内容"""
+        """使用外部 LLM API 翻译 SRT 内容（批量翻译优化）"""
         if target_language == "无翻译" or not srt_content:
             return ""
         
@@ -242,31 +247,120 @@ class SpeechRecognitionNode:
         }
         target_lang_name = lang_names.get(target_lang, target_lang)
         
-        # 解析 SRT 并逐条翻译
-        lines = srt_content.strip().split("\n\n")
-        translated_lines = []
+        # 解析 SRT 块
+        blocks = srt_content.strip().split("\n\n")
+        total_blocks = len(blocks)
         
-        for block in lines:
+        # 提取所有字幕文本和元数据
+        subtitles = []
+        for block in blocks:
             parts = block.strip().split("\n")
             if len(parts) >= 3:
-                index = parts[0]
-                timestamp = parts[1]
-                text = "\n".join(parts[2:])
-                
-                # 使用外部 LLM API 翻译
-                translated_text = call_llm_api(llm_api_config, text, target_lang_name)
-                
-                translated_lines.append(f"{index}\n{timestamp}\n{translated_text}")
+                subtitles.append({
+                    "index": parts[0],
+                    "timestamp": parts[1],
+                    "text": "\n".join(parts[2:])
+                })
+        
+        # 批量翻译参数
+        batch_size = 10  # 每批翻译 10 条
+        translated_lines = []
+        total_batches = (len(subtitles) + batch_size - 1) // batch_size
+        
+        print(f"[FasterWhisper] 批量翻译: 共 {len(subtitles)} 条字幕，分 {total_batches} 批处理")
+        
+        for batch_idx in range(0, len(subtitles), batch_size):
+            batch = subtitles[batch_idx:batch_idx + batch_size]
+            current_batch = batch_idx // batch_size + 1
+            
+            # 逐条翻译每个字幕（更可靠）
+            for sub in batch:
+                translated_text = call_llm_api(llm_api_config, sub['text'], target_lang_name)
+                translated_lines.append(f"{sub['index']}\n{sub['timestamp']}\n{translated_text}")
+            
+            print(f"[FasterWhisper] 翻译进度: 批次 {current_batch}/{total_batches} ({current_batch*100//total_batches}%)")
         
         return "\n\n".join(translated_lines)
     
-    def transcribe(self, audio_path, model, compute_type, language, translation_language,
-                   llm_model=None, beam_size=5, batch_size=8, vad_filter=True):
+    def _parse_batch_translation(self, translated_text, expected_count):
+        """解析批量翻译结果"""
+        results = []
+        lines = translated_text.strip().split("\n")
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # 尝试匹配 [1] xxx 或 1. xxx 或 1、xxx 格式
+            import re
+            match = re.match(r'^\[?\d+[\]\.、:：]\s*(.+)$', line)
+            if match:
+                results.append(match.group(1).strip())
+            elif len(results) < expected_count:
+                # 如果没有编号，直接添加
+                results.append(line)
+        
+        # 如果解析结果不足，用空字符串填充
+        while len(results) < expected_count:
+            results.append("")
+        
+        return results[:expected_count]
+    
+    def _audio_to_file(self, audio):
+        """
+        将 ComfyUI 原生 AUDIO 类型转换为临时音频文件
+        AUDIO 类型格式: {"waveform": tensor, "sample_rate": int}
+        """
+        try:
+            import scipy.io.wavfile as wavfile
+        except ImportError:
+            raise ImportError("请安装 scipy: pip install scipy")
+        
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        
+        # 转换为 numpy 数组
+        if hasattr(waveform, 'cpu'):
+            waveform = waveform.cpu().numpy()
+        
+        # 确保格式正确 (samples,) 或 (channels, samples)
+        if waveform.ndim == 3:
+            # (batch, channels, samples) -> (samples,)
+            waveform = waveform.squeeze(0)
+            if waveform.ndim == 2:
+                waveform = waveform.mean(axis=0)  # 转为单声道
+        elif waveform.ndim == 2:
+            waveform = waveform.mean(axis=0)  # 转为单声道
+        
+        # 归一化到 int16 范围
+        waveform = np.clip(waveform, -1.0, 1.0)
+        waveform_int16 = (waveform * 32767).astype(np.int16)
+        
+        # 保存为临时 wav 文件
+        temp_dir = os.path.join(folder_paths.get_temp_directory(), "audio_input")
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_path = os.path.join(temp_dir, f"audio_input_{id(audio)}.wav")
+        
+        wavfile.write(temp_path, sample_rate, waveform_int16)
+        return temp_path
+
+    def transcribe(self, model, compute_type, language, translation_language,
+                   audio_path=None, audio=None, llm_model=None, beam_size=5, batch_size=8, vad_filter=True):
         """
         执行语音识别
         """
-        if not audio_path or not os.path.exists(audio_path):
-            raise FileNotFoundError(f"音频文件不存在: {audio_path}")
+        # 确定音频来源
+        actual_audio_path = None
+        
+        if audio is not None:
+            # 使用 ComfyUI 原生 AUDIO 类型
+            print("[FasterWhisper] 使用 ComfyUI 原生音频输入")
+            actual_audio_path = self._audio_to_file(audio)
+        elif audio_path:
+            actual_audio_path = audio_path
+        
+        if not actual_audio_path or not os.path.exists(actual_audio_path):
+            raise FileNotFoundError(f"音频文件不存在或未提供音频输入。请连接 '音频路径' 或 'audio' 输入。")
         
         # 加载模型
         whisper_model = self._load_model(model, compute_type)
@@ -274,7 +368,7 @@ class SpeechRecognitionNode:
         # 解析语言
         lang = self._parse_language(language)
         
-        print(f"[FasterWhisper] 开始识别: {audio_path}")
+        print(f"[FasterWhisper] 开始识别: {actual_audio_path}")
         print(f"[FasterWhisper] 语言: {lang if lang else '自动检测'}, Beam Size: {beam_size}")
         
         transcribe_kwargs = {
@@ -297,7 +391,7 @@ class SpeechRecognitionNode:
         # 执行识别
         try:
             segments, info = whisper_model.transcribe(
-                audio_path,
+                actual_audio_path,
                 **transcribe_kwargs,
             )
         except TypeError as e:
@@ -305,7 +399,7 @@ class SpeechRecognitionNode:
                 transcribe_kwargs.pop("batch_size", None)
                 print("[FasterWhisper] 警告: WhisperModel.transcribe 不支持 batch_size，已自动忽略并重试")
                 segments, info = whisper_model.transcribe(
-                    audio_path,
+                    actual_audio_path,
                     **transcribe_kwargs,
                 )
             else:
